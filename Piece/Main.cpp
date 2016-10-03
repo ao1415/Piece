@@ -154,34 +154,45 @@ void Main()
 
 	Webcam webcam;
 
-	if (!webcam.open(1, Size(1920, 1080)))
+	if (!webcam.open(0, Size(1920, 1080)))
 		return;
 	if (!webcam.start())
 		return;
 
 	Image original;
+	DynamicTexture dtexture;
+
 	while (System::Update())
 	{
 		if (webcam.hasNewFrame())
 		{
-			webcam.getFrame(original);
-			break;
+			// 動的テクスチャをカメラの画像で更新
+			webcam.getFrame(dtexture);
+			if (Input::KeyC.pressed)
+			{
+				webcam.getFrame(original);
+				break;
+			}
+		}
+
+		if (dtexture)
+		{
+			dtexture.resize(640, 480).draw();
 		}
 	}
+	Console::Open();
 
 	if (!FileSystem::Exists(L"./chip"))
 		FileSystem::CreateDirectories(L"./chip");
 
 	original.savePNG(L"./chip/カメラ.png");
 
-	Image extraction = original.grayscaled().thresholded(151);
+	Image extraction = original.grayscaled().thresholded(63);
 	const auto images = ImageChip::chip(extraction);
 
 	for (const auto& num : step(images.size()))
-		images[num].savePNG(L"./chip/" + Pad(num, { L'0',2 }) + L".png");
+		images[num].savePNG(L"./chip/" + Format(num) + L".png");
 
-	Console::Open();
 	cout << images.size() << endl;
-	system("pause");
-
+	WaitKey();
 }
