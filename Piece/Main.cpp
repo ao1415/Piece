@@ -1,4 +1,8 @@
 ﻿#include <Siv3D.hpp>
+#include <stack>
+#include <queue>
+
+using namespace std;
 
 class ExtraPiece {
 public:
@@ -46,35 +50,264 @@ public:
 
 };
 
+class ImageChip {
+public:
+
+	static const Array<Image> chip(Image image) {
+
+		Grid<int> bmp(image.size, 0);
+		Grid<int> flag(image.size, -1);
+
+		for (const auto& p : step(image.size))
+			bmp[p] = image[p].r;
+
+		const int pieceNumber = numbering(bmp, flag);
+
+		return chiper(bmp, flag);
+	}
+
+private:
+
+	static const inline bool inside(const Point& p, const Size& s) {
+		return (0 <= p.x && 0 <= p.y && p.x < s.x && p.y < s.y);
+	}
+
+	static const int numbering(const Grid<int>& bmp, Grid<int>& flag) {
+
+		const auto inside = [](const Point& p, const Size& s) {
+			return (0 <= p.x && 0 <= p.y && p.x < s.x && p.y < s.y);
+		};
+
+		int pieceCount = 0;
+		for (const auto& p : step(bmp.size()))
+		{
+			if (flag[p] != -1) continue;
+
+			std::stack<Point> sta;
+
+			sta.push(p);
+			const int color = bmp[p];
+			flag[p] = pieceCount;
+
+			while (!sta.empty())
+			{
+				const auto point = sta.top();
+				sta.pop();
+
+				for (int dy = -1; dy <= 1; dy++)
+				{
+					for (int dx = -1; dx <= 1; dx++)
+					{
+						if (dy == 0 && dx == 0) continue;
+
+						const Point dp = point + Point(dx, dy);
+
+						if (inside(dp, bmp.size()) && flag[dp] == -1 && bmp[dp] == color)
+						{
+							sta.push(dp);
+							flag[dp] = pieceCount;
+						}
+
+					}
+				}
+
+			}
+			pieceCount++;
+		}
+		/*
+		Image img(bmp.size(), Palette::Black);
+		for (const auto& p : step(bmp.size()))
+		{
+		const int c = 255 / pieceCount*flag[p];
+		img[p] = Color(c, c, c);
+		}
+		img.savePNG(L"切り分け.png");
+		*/
+		return pieceCount;
+	}
+
+	static const Array<Image> chiper(const Grid<int>& bmp, const Grid<int>& label) {
+
+		Array<Image> images;
+
+		int pieceCount = 1;
+		Grid<bool> flag(bmp.size(), false);
+
+		for (const auto& p : step(bmp.size()))
+		{
+			if (label[p] <= 0) continue;
+
+			if (label[p] == pieceCount && !flag[p])
+			{
+				Array<Point> points;
+
+				std::stack<Point> sta;
+				sta.push(p);
+				flag[p] = true;
+				points.push_back(p);
+
+				int left = p.x, right = p.x, up = p.y, down = p.y;
+
+				while (!sta.empty())
+				{
+					const Point point = sta.top();
+					sta.pop();
+
+					for (int dy = -1; dy <= 1; dy++)
+					{
+						for (int dx = -1; dx <= 1; dx++)
+						{
+							if (dy == 0 && dx == 0) continue;
+
+							const Point dp = point + Point(dx, dy);
+
+							if (inside(dp, bmp.size()) && !flag[dp] && label[dp] == pieceCount)
+							{
+								sta.push(dp);
+								points.push_back(dp);
+								flag[dp] = true;
+
+								left = std::min(left, dp.x);
+								right = std::max(right, dp.x);
+								up = std::min(up, dp.y);
+								down = std::max(down, dp.y);
+							}
+
+						}
+					}
+
+				}
+
+				Image chipImage({ right - left + 1,down - up + 1 }, Palette::Black);
+
+				for (const auto& point : points)
+				{
+					chipImage[point - Point(left, up)] = Palette::White;
+				}
+				images.push_back(chipImage);
+				pieceCount++;
+			}
+
+		}
+
+		return images;
+	}
+
+};
+
+class Filter {
+public:
+
+	static Image filter(Image image) {
+
+		Grid<bool> check(image.size, false);
+
+		for (const auto& p : step(image.size))
+		{
+			if (!check[p])
+			{
+				check[p] = true;
+
+				std::queue<Point> que;
+				que.push(p);
+
+				Array<Point> points;
+				points.push_back(p);
+
+				const auto inside = [](const Point& p, const Size& s) { return (0 <= p.x && p.x < s.x && 0 <= p.y && p.y < s.y); };
+
+				while (!que.empty())
+				{
+					const Point p = que.front();
+					que.pop();
+
+					const Point p1 = p + Point(0, -1);
+					const Point p2 = p + Point(-1, 0);
+					const Point p3 = p + Point(1, 0);
+					const Point p4 = p + Point(0, 1);
+
+					if (inside(p1, image.size) && !check[p1] && image[p1] == Palette::White)
+					{
+						check[p1] = true;
+						que.push(p1);
+						points.push_back(p1);
+					}
+					if (inside(p2, image.size) && !check[p2] && image[p2] == Palette::White)
+					{
+						check[p2] = true;
+						que.push(p2);
+						points.push_back(p2);
+					}
+					if (inside(p3, image.size) && !check[p3] && image[p3] == Palette::White)
+					{
+						check[p3] = true;
+						que.push(p3);
+						points.push_back(p3);
+					}
+					if (inside(p4, image.size) && !check[p4] && image[p4] == Palette::White)
+					{
+						check[p4] = true;
+						que.push(p4);
+						points.push_back(p4);
+					}
+				}
+
+				if (points.size() > 20)
+				{
+					for (const auto& pos : points)
+					{
+						image[pos] = Palette::Black;
+					}
+				}
+
+			}
+
+
+		}
+
+		return image;
+	}
+
+};
+
 void Main()
 {
-	Image image(L"piece2.png");
-	Texture texture(image);
-
-	Window::Resize(texture.size * 2);
+	Image image(L"抽出.png");
 
 	ExtraPiece extra;
 
+	image = Filter::filter(image);
+
+	auto images = ImageChip::chip(image);
+
+	for (const int i : step(images.size()))
+	{
+		System::Update();
+		images[i].savePNG(L"picture/分離" + Format(i) + L".png");
+	}
+
+	return;
+
+	for (auto& img : images)
+	{
+		const auto vec = extra.getPiece(img);
+
+		for (size_t i = 0, size = vec.size(); i < size; i++)
+		{
+			Line(vec[i], vec[(i + 1) % size]).overwrite(img, Palette::Yellow);
+		}
+	}
+
+	for (const int i : step(images.size()))
+	{
+		System::Update();
+		Texture tex(images[i]);
+		tex.draw();
+		ScreenCapture::Save(L"picture/形状取得" + Format(i) + L".png");
+	}
+
 	while (System::Update())
 	{
-		texture.draw();
-
-		const auto vec = extra.getPiece(image);
-
-		for (size_t i = 0, size = vec.size(); i < size; i++)
-		{
-			const Point p1 = Point(texture.size.x, 0) + vec[i];
-			const Point p2 = Point(texture.size.x, 0) + vec[(i + 1) % size];
-			Line(p1, p2).draw(Palette::Yellow);
-		}
-
-		texture.draw(Point(texture.size.x / 2, texture.size.y), Alpha(127));
-		for (size_t i = 0, size = vec.size(); i < size; i++)
-		{
-			const Point p1 = Point(texture.size.x / 2, texture.size.y) + vec[i];
-			const Point p2 = Point(texture.size.x / 2, texture.size.y) + vec[(i + 1) % size];
-			Line(p1, p2).draw(Palette::Yellow);
-		}
 
 	}
 
