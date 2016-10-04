@@ -19,7 +19,7 @@ public:
 			const double angel = Math::Atan2(vecArray[(i + 1) % size].y - vecArray[i].y, vecArray[(i + 1) % size].x - vecArray[i].x);
 
 			//最低の辺の長さ未満ならば辺を削除する
-			if (range > 15)
+			if (range > 10)
 			{
 				vec.push_back(Point(vecArray[i].x, vecArray[i].y));
 			}
@@ -218,13 +218,13 @@ public:
 
 				while (!que.empty())
 				{
-					const Point p = que.front();
+					const Point point = que.front();
 					que.pop();
 
-					const Point p1 = p + Point(0, -1);
-					const Point p2 = p + Point(-1, 0);
-					const Point p3 = p + Point(1, 0);
-					const Point p4 = p + Point(0, 1);
+					const Point p1 = point + Point(0, -1);
+					const Point p2 = point + Point(-1, 0);
+					const Point p3 = point + Point(1, 0);
+					const Point p4 = point + Point(0, 1);
 
 					if (inside(p1, image.size) && !check[p1] && image[p1] == Palette::White)
 					{
@@ -252,7 +252,7 @@ public:
 					}
 				}
 
-				if (points.size() > 20)
+				if (points.size() < 50)
 				{
 					for (const auto& pos : points)
 					{
@@ -270,9 +270,189 @@ public:
 
 };
 
+struct Corner {
+	Point point;
+	double length;
+	double angle;
+};
+
+struct Piece {
+	Array<Corner> corners;
+};
+
+class AI {
+public:
+
+	void think(const Array<Array<Point>>& points) {
+
+		getData(points);
+
+		for (const auto& piece : pieces)
+		{
+			for (const auto& corner : piece.corners)
+			{
+				cout << corner.point << endl;
+				printf("%3.4lf, %3.4lf(%3.4lf)\n", corner.length, corner.angle, corner.angle / Pi * 180);
+			}
+			cout << endl;
+		}
+
+		const size_t size = pieces.size();
+
+		struct PairMatch {
+			PairMatch() = default;
+			PairMatch(size_t _n1, size_t _n2, int s) : n1(_n1), n2(_n2), score(s) {}
+
+			size_t n1;
+			size_t n2;
+			int score;
+
+			const bool operator<(const PairMatch& other) const { return score < other.score; }
+
+		};
+
+		priority_queue<PairMatch> scoreQue;
+
+		for (size_t i = 0; i < size; i++)
+		{
+			for (size_t j = i + 1; j < size; j++)
+			{
+				const int score = match(i, j);
+				//printf("%3d, %3d: %d\n", (int)i, (int)j, score);
+				scoreQue.emplace(i, j, score);
+			}
+		}
+		cout << endl;
+
+		while (!scoreQue.empty())
+		{
+			const auto data = scoreQue.top();
+			scoreQue.pop();
+			printf("%3d, %3d: %d\n", (int)data.n1, (int)data.n2, data.score);
+		}
+
+	}
+
+private:
+
+	Array<Piece> pieces;
+
+	void getData(const Array<Array<Point>>& points) {
+
+		for (const auto& piece : points)
+		{
+			Array<double> length;
+			Array<double> angle;
+
+			Piece pie;
+			Corner corner;
+
+			for (size_t i = 0, size = piece.size(); i < size; i++)
+			{
+				const Point p1 = piece[(i + 0) % size];
+				const Point p2 = piece[(i + 1) % size];
+
+				const Point _p1 = piece[(i + size - 1) % size];
+				const Point _p2 = piece[(i + size - 0) % size];
+
+				const Point dp = p2 - p1;
+				const Point _dp = _p2 - _p1;
+
+				const double len = Math::Sqrt(Math::Square(p1.x - p2.x) + Math::Square(p1.y - p2.y));
+
+				const double ang = Math::Atan2((double)dp.x, (double)dp.y);
+				const double _ang = Math::Atan2((double)_dp.x, (double)_dp.y);
+
+				const double dang = Pi - (_ang - ang);
+
+				corner.point = piece[i];
+				corner.length = len;
+				corner.angle = dang;
+				pie.corners.push_back(corner);
+			}
+			cout << endl;
+			pieces.emplace_back(pie);
+		}
+
+	}
+
+	const int match(const size_t n1, const size_t n2) const {
+
+		int score = 0;
+		const double errer = 3.0 / 180 * Pi;
+
+		for (const auto i : step(pieces[n1].corners.size()))
+		{
+			for (const auto j : step(pieces[n2].corners.size()))
+			{
+				const double addAngle = pieces[n1].corners[i].angle + pieces[n2].corners[j].angle;
+				if (abs(addAngle - HalfPi) <= errer)
+				{
+					score += 100;
+				}
+				if (abs(addAngle - Pi) <= errer)
+				{
+					const double len1 = pieces[n1].corners[i].length;
+					const double len2 = pieces[n2].corners[j].length;
+
+					const double ang1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
+					const double ang2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
+
+					if (len1 < len2)
+					{
+						if (ang1 <= Pi)
+							score += 200;
+					}
+					else if (len2 < len1)
+					{
+						if (ang2 <= Pi)
+							score += 200;
+					}
+					else
+					{
+						if (ang1 + ang2 < Pi * 2)
+							score += 400;
+					}
+				}
+				if (abs(addAngle - Pi * 2) <= errer)
+				{
+					const double len1 = pieces[n1].corners[i].length;
+					const double len2 = pieces[n2].corners[j].length;
+
+					const double ang1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
+					const double ang2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
+
+					if (len1 < len2)
+					{
+						if (ang1 <= Pi)
+							score += 400;
+					}
+					else if (len2 < len1)
+					{
+						if (ang2 <= Pi)
+							score += 400;
+					}
+					else
+					{
+						if (ang1 + ang2 < Pi * 2)
+							score += 800;
+					}
+				}
+			}
+		}
+
+		return score;
+	}
+
+};
+
 void Main()
 {
-	Image image(L"抽出.png");
+	Image image(L"撮影.png");
+
+	Window::Resize(image.size);
+
+	image.grayscale().threshold(91);
 
 	ExtraPiece extra;
 
@@ -280,35 +460,31 @@ void Main()
 
 	auto images = ImageChip::chip(image);
 
-	for (const int i : step(images.size()))
-	{
-		System::Update();
-		images[i].savePNG(L"picture/分離" + Format(i) + L".png");
-	}
+	for (const auto& i : step(images.size())) images[i].savePNG(L"picture/分離" + Format(i) + L".png");
 
-	return;
+	Array<Array<Point>> pieces;
 
 	for (auto& img : images)
 	{
 		const auto vec = extra.getPiece(img);
-
 		for (size_t i = 0, size = vec.size(); i < size; i++)
-		{
-			Line(vec[i], vec[(i + 1) % size]).overwrite(img, Palette::Yellow);
-		}
+			Line(vec[i], vec[(i + 1) % size]).overwrite(img, Palette::Red);
+
+		pieces.emplace_back(vec);
 	}
 
-	for (const int i : step(images.size()))
+	for (const auto& i : step(images.size()))
 	{
+		Window::Resize(images[i].size);
 		System::Update();
 		Texture tex(images[i]);
 		tex.draw();
 		ScreenCapture::Save(L"picture/形状取得" + Format(i) + L".png");
 	}
+	System::Update();
 
-	while (System::Update())
-	{
+	AI ai;
 
-	}
+	ai.think(pieces);
 
 }
