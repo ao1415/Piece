@@ -252,7 +252,7 @@ public:
 					}
 				}
 
-				if (points.size() < 50)
+				if (points.size() < 200)
 				{
 					for (const auto& pos : points)
 					{
@@ -266,6 +266,55 @@ public:
 		}
 
 		return image;
+	}
+
+	static const Image median(Image image) {
+
+		Grid<int> bmp(image.size, 0);
+		Grid<int> bmp2(image.size, 0);
+
+		for (const auto& p : step(image.size))
+			bmp[p] = image[p].r;
+
+		const int size = 3;
+
+		for (int y = 0; y < image.size.y; y++)
+		{
+			for (int x = 0; x < image.size.x; x++)
+			{
+				int val[size*size];
+				int count = 0;
+				for (int dy = -size / 2; dy <= size / 2; dy++)
+				{
+					for (int dx = -size / 2; dx <= size / 2; dx++)
+					{
+						const Point p2 = Point(x + dx, y + dy);
+						if (inside(p2, image.size))
+						{
+							val[count++] = bmp[p2];
+						}
+					}
+				}
+				std::sort(val, val + count);
+				bmp2[y][x] = val[count / 2];
+			}
+		}
+
+		for (int y = 0; y < image.size.y; y++)
+		{
+			for (int x = 0; x < image.size.x; x++)
+			{
+				const int val = bmp2[y][x];
+				image[y][x] = Color(val, val, val);
+			}
+		}
+
+		return image;
+	}
+
+private:
+	static const inline bool inside(const Point& p, const Size& s) {
+		return (0 <= p.x && 0 <= p.y && p.x < s.x && p.y < s.y);
 	}
 
 };
@@ -287,16 +336,6 @@ public:
 
 		getData(points);
 
-		for (const auto& piece : pieces)
-		{
-			for (const auto& corner : piece.corners)
-			{
-				cout << corner.point << endl;
-				printf("%3.4lf, %3.4lf(%3.4lf)\n", corner.length, corner.angle, corner.angle / Pi * 180);
-			}
-			cout << endl;
-		}
-
 		const size_t size = pieces.size();
 
 		struct PairMatch {
@@ -312,18 +351,24 @@ public:
 		};
 
 		priority_queue<PairMatch> scoreQue;
+		vector<PairMatch> scoreVec;
 
 		for (size_t i = 0; i < size; i++)
 		{
 			for (size_t j = i + 1; j < size; j++)
 			{
 				const int score = match(i, j);
-				//printf("%3d, %3d: %d\n", (int)i, (int)j, score);
-				scoreQue.emplace(i, j, score);
+				if (score > 0)
+					scoreVec.push_back(PairMatch{ i, j, score });
+				scoreQue.push(PairMatch{ i, j, score });
 			}
 		}
-		cout << endl;
 
+		for (const auto& ans : scoreVec)
+		{
+			printf("%3d, %3d: %d\n", (int)ans.n1, (int)ans.n2, ans.score);
+		}
+		cout << endl;
 		while (!scoreQue.empty())
 		{
 			const auto data = scoreQue.top();
@@ -370,7 +415,6 @@ private:
 				corner.angle = dang;
 				pie.corners.push_back(corner);
 			}
-			cout << endl;
 			pieces.emplace_back(pie);
 		}
 
@@ -378,85 +422,240 @@ private:
 
 	const int match(const size_t n1, const size_t n2) const {
 
-		int score = 0;
-		const double errer = 3.0 / 180 * Pi;
+		const double angleErrer = 1.0 / 180 * Pi;
+		const double lengthErrer = 3;
 
-		for (const auto i : step(pieces[n1].corners.size()))
+		const auto size1 = pieces[n1].corners.size();
+		const auto size2 = pieces[n2].corners.size();
+
+		int maxScore = 0;
+
+		for (const auto i : step(size1))
 		{
-			for (const auto j : step(pieces[n2].corners.size()))
+			for (const auto j : step(size2))
 			{
 				const double addAngle = pieces[n1].corners[i].angle + pieces[n2].corners[j].angle;
-				if (abs(addAngle - HalfPi) <= errer)
-				{
-					score += 100;
-				}
-				if (abs(addAngle - Pi) <= errer)
-				{
-					const double len1 = pieces[n1].corners[i].length;
-					const double len2 = pieces[n2].corners[j].length;
 
-					const double ang1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
-					const double ang2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
+				const double len1_1 = pieces[n1].corners[i].length;
+				const double len1_2 = pieces[n2].corners[j].length;
 
-					if (len1 < len2)
+				const double len2_1 = pieces[n1].corners[(i + size1 - 1) % size1].length;
+				const double len2_2 = pieces[n2].corners[(j + size2 - 1) % size2].length;
+
+				const double ang1_1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
+				const double ang1_2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
+
+				const double ang2_1 = pieces[n1].corners[(i + size1 - 1) % size1].angle;
+				const double ang2_2 = pieces[n2].corners[(j + size2 - 1) % size2].angle;
+
+				int score = 0;
+
+				//角の合計が180度
+				if (abs(addAngle - Pi) <= angleErrer)
+				{
+					//len1が長い場合
+					if (len1_1 - len1_2 + lengthErrer > 0)
 					{
-						if (ang1 <= Pi)
-							score += 200;
+						//len2の次の角度が180度を越えない
+						if (ang1_2 < Pi + angleErrer)
+						{
+							score += 100;
+						}
 					}
-					else if (len2 < len1)
+					//len2が長い場合
+					else if (len1_2 - len1_1 + lengthErrer > 0)
 					{
-						if (ang2 <= Pi)
-							score += 200;
+						if (ang1_1 < Pi + angleErrer)
+						{
+							score += 100;
+						}
 					}
+					//辺の長さが同じ
 					else
 					{
-						if (ang1 + ang2 < Pi * 2)
+						//角度の合計が180度
+						if (abs(ang1_1 + ang1_2 - Pi) < angleErrer)
+						{
+							score += 200;
+						}
+						//角度の合計が360度
+						if (abs(ang1_1 + ang1_2 - Pi * 2) < angleErrer)
+						{
 							score += 400;
+						}
 					}
+
 				}
-				if (abs(addAngle - Pi * 2) <= errer)
+
+				//角の合計が360度
+				if (abs(addAngle - Pi * 2) <= angleErrer)
 				{
-					const double len1 = pieces[n1].corners[i].length;
-					const double len2 = pieces[n2].corners[j].length;
-
-					const double ang1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
-					const double ang2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
-
-					if (len1 < len2)
+					//len1が長い場合
+					if (len1_1 - len1_2 + lengthErrer > 0)
 					{
-						if (ang1 <= Pi)
-							score += 400;
+						//len2の次の角度が180度を越えない
+						if (ang1_2 < Pi + angleErrer)
+						{
+							if (len2_1 - len2_2 + lengthErrer > 0)
+							{
+								if (ang2_1 < Pi + angleErrer)
+								{
+									score += 400;
+								}
+							}
+							else if (len2_2 - len2_1 + lengthErrer > 0)
+							{
+								if (ang2_2 < Pi + angleErrer)
+								{
+									score += 400;
+								}
+							}
+							else
+							{
+								//角度の合計が180度
+								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
+								{
+									score += 200;
+								}
+								//角度の合計が360度
+								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
+								{
+									score += 400;
+								}
+							}
+						}
 					}
-					else if (len2 < len1)
+					//len2が長い場合
+					else if (len1_2 - len1_1 + lengthErrer > 0)
 					{
-						if (ang2 <= Pi)
-							score += 400;
+						//len1の次の角度が180度を越えない
+						if (ang1_1 < Pi + angleErrer)
+						{
+							if (len2_1 - len2_2 + lengthErrer > 0)
+							{
+								if (ang2_1 < Pi + angleErrer)
+								{
+									score += 400;
+								}
+							}
+							else if (len2_2 - len2_1 + lengthErrer > 0)
+							{
+								if (ang2_2 < Pi + angleErrer)
+								{
+									score += 400;
+								}
+							}
+							else
+							{
+								//角度の合計が180度
+								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
+								{
+									score += 200;
+								}
+								//角度の合計が360度
+								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
+								{
+									score += 400;
+								}
+							}
+						}
 					}
+					//辺の長さが同じ
 					else
 					{
-						if (ang1 + ang2 < Pi * 2)
-							score += 800;
+						//角度の合計が180度
+						if (abs(ang1_1 + ang1_2 - Pi) < angleErrer)
+						{
+							if (len2_1 - len2_2 + lengthErrer > 0)
+							{
+								if (ang2_1 < Pi + angleErrer)
+								{
+									score += 800;
+								}
+							}
+							else if (len2_2 - len2_1 + lengthErrer > 0)
+							{
+								if (ang2_2 < Pi + angleErrer)
+								{
+									score += 800;
+								}
+							}
+							else
+							{
+								//角度の合計が180度
+								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
+								{
+									score += 1000;
+								}
+								//角度の合計が360度
+								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
+								{
+									score += 1200;
+								}
+							}
+						}
+						//角度の合計が360度
+						if (abs(ang1_1 + ang1_2 - Pi * 2) < angleErrer)
+						{
+							if (len2_1 - len2_2 + lengthErrer > 0)
+							{
+								if (ang2_1 < Pi + angleErrer)
+								{
+									score += 1200;
+								}
+							}
+							else if (len2_2 - len2_1 + lengthErrer > 0)
+							{
+								if (ang2_2 < Pi + angleErrer)
+								{
+									score += 1200;
+								}
+							}
+							else
+							{
+								//角度の合計が180度
+								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
+								{
+									score += 1600;
+								}
+								//角度の合計が360度
+								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
+								{
+									score += 2000;
+								}
+							}
+						}
 					}
 				}
+
+				maxScore = max(maxScore, score);
 			}
 		}
 
-		return score;
+		return maxScore;
 	}
 
 };
 
 void Main()
 {
-	Image image(L"撮影.png");
+	/*
+	Image image(L"iphone.jpg");
 
 	Window::Resize(image.size);
 
-	image.grayscale().threshold(91);
+	image.grayscale().threshold(60);
 
-	ExtraPiece extra;
+	image.savePNG(L"二値化.png");
 
 	image = Filter::filter(image);
+
+	image.savePNG(L"ノイズ除去.png");
+	*/
+
+	Image image(L"ノイズ除去.png");
+
+	image = Filter::median(image);
 
 	auto images = ImageChip::chip(image);
 
@@ -464,11 +663,13 @@ void Main()
 
 	Array<Array<Point>> pieces;
 
+	ExtraPiece extra;
+
 	for (auto& img : images)
 	{
 		const auto vec = extra.getPiece(img);
 		for (size_t i = 0, size = vec.size(); i < size; i++)
-			Line(vec[i], vec[(i + 1) % size]).overwrite(img, Palette::Red);
+			Line(vec[i], vec[(i + 1) % size]).overwrite(img, 4, Palette::Red);
 
 		pieces.emplace_back(vec);
 	}
