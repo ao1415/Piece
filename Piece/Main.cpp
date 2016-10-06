@@ -332,7 +332,9 @@ struct Piece {
 class AI {
 public:
 
-	void think(const Array<Array<Point>>& points) {
+	Array<std::pair<size_t, size_t>> think(const Array<Array<Point>>& points) {
+
+		Array<std::pair<size_t, size_t>> pattern;
 
 		getData(points);
 
@@ -346,7 +348,15 @@ public:
 			size_t n2;
 			int score;
 
-			const bool operator<(const PairMatch& other) const { return score < other.score; }
+			const bool operator<(const PairMatch& other) const {
+				if (score < other.score) return true;
+				else if (score > other.score) return false;
+				if (n1 < other.n1) return false;
+				else if (n1 > other.n1) return true;
+				if (n2 < other.n2) return false;
+				else if (n2 > other.n2) return true;
+				return false;
+			}
 
 		};
 
@@ -372,10 +382,12 @@ public:
 		while (!scoreQue.empty())
 		{
 			const auto data = scoreQue.top();
+			pattern.push_back({ data.n1,data.n2 });
 			scoreQue.pop();
 			printf("%3d, %3d: %d\n", (int)data.n1, (int)data.n2, data.score);
 		}
 
+		return pattern;
 	}
 
 private:
@@ -422,8 +434,8 @@ private:
 
 	const int match(const size_t n1, const size_t n2) const {
 
-		const double angleErrer = 1.0 / 180 * Pi;
-		const double lengthErrer = 3;
+		const double angleErrer = 3.0 / 180 * Pi;
+		const double lengthErrer = 10;
 
 		const auto size1 = pieces[n1].corners.size();
 		const auto size2 = pieces[n2].corners.size();
@@ -434,199 +446,7 @@ private:
 		{
 			for (const auto j : step(size2))
 			{
-				const double addAngle = pieces[n1].corners[i].angle + pieces[n2].corners[j].angle;
-
-				const double len1_1 = pieces[n1].corners[i].length;
-				const double len1_2 = pieces[n2].corners[j].length;
-
-				const double len2_1 = pieces[n1].corners[(i + size1 - 1) % size1].length;
-				const double len2_2 = pieces[n2].corners[(j + size2 - 1) % size2].length;
-
-				const double ang1_1 = pieces[n1].corners[(i + 1) % pieces[n1].corners.size()].angle;
-				const double ang1_2 = pieces[n2].corners[(j + 1) % pieces[n2].corners.size()].angle;
-
-				const double ang2_1 = pieces[n1].corners[(i + size1 - 1) % size1].angle;
-				const double ang2_2 = pieces[n2].corners[(j + size2 - 1) % size2].angle;
-
-				int score = 0;
-
-				//角の合計が180度
-				if (abs(addAngle - Pi) <= angleErrer)
-				{
-					//len1が長い場合
-					if (len1_1 - len1_2 + lengthErrer > 0)
-					{
-						//len2の次の角度が180度を越えない
-						if (ang1_2 < Pi + angleErrer)
-						{
-							score += 100;
-						}
-					}
-					//len2が長い場合
-					else if (len1_2 - len1_1 + lengthErrer > 0)
-					{
-						if (ang1_1 < Pi + angleErrer)
-						{
-							score += 100;
-						}
-					}
-					//辺の長さが同じ
-					else
-					{
-						//角度の合計が180度
-						if (abs(ang1_1 + ang1_2 - Pi) < angleErrer)
-						{
-							score += 200;
-						}
-						//角度の合計が360度
-						if (abs(ang1_1 + ang1_2 - Pi * 2) < angleErrer)
-						{
-							score += 400;
-						}
-					}
-
-				}
-
-				//角の合計が360度
-				if (abs(addAngle - Pi * 2) <= angleErrer)
-				{
-					//len1が長い場合
-					if (len1_1 - len1_2 + lengthErrer > 0)
-					{
-						//len2の次の角度が180度を越えない
-						if (ang1_2 < Pi + angleErrer)
-						{
-							if (len2_1 - len2_2 + lengthErrer > 0)
-							{
-								if (ang2_1 < Pi + angleErrer)
-								{
-									score += 400;
-								}
-							}
-							else if (len2_2 - len2_1 + lengthErrer > 0)
-							{
-								if (ang2_2 < Pi + angleErrer)
-								{
-									score += 400;
-								}
-							}
-							else
-							{
-								//角度の合計が180度
-								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
-								{
-									score += 200;
-								}
-								//角度の合計が360度
-								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
-								{
-									score += 400;
-								}
-							}
-						}
-					}
-					//len2が長い場合
-					else if (len1_2 - len1_1 + lengthErrer > 0)
-					{
-						//len1の次の角度が180度を越えない
-						if (ang1_1 < Pi + angleErrer)
-						{
-							if (len2_1 - len2_2 + lengthErrer > 0)
-							{
-								if (ang2_1 < Pi + angleErrer)
-								{
-									score += 400;
-								}
-							}
-							else if (len2_2 - len2_1 + lengthErrer > 0)
-							{
-								if (ang2_2 < Pi + angleErrer)
-								{
-									score += 400;
-								}
-							}
-							else
-							{
-								//角度の合計が180度
-								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
-								{
-									score += 200;
-								}
-								//角度の合計が360度
-								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
-								{
-									score += 400;
-								}
-							}
-						}
-					}
-					//辺の長さが同じ
-					else
-					{
-						//角度の合計が180度
-						if (abs(ang1_1 + ang1_2 - Pi) < angleErrer)
-						{
-							if (len2_1 - len2_2 + lengthErrer > 0)
-							{
-								if (ang2_1 < Pi + angleErrer)
-								{
-									score += 800;
-								}
-							}
-							else if (len2_2 - len2_1 + lengthErrer > 0)
-							{
-								if (ang2_2 < Pi + angleErrer)
-								{
-									score += 800;
-								}
-							}
-							else
-							{
-								//角度の合計が180度
-								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
-								{
-									score += 1000;
-								}
-								//角度の合計が360度
-								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
-								{
-									score += 1200;
-								}
-							}
-						}
-						//角度の合計が360度
-						if (abs(ang1_1 + ang1_2 - Pi * 2) < angleErrer)
-						{
-							if (len2_1 - len2_2 + lengthErrer > 0)
-							{
-								if (ang2_1 < Pi + angleErrer)
-								{
-									score += 1200;
-								}
-							}
-							else if (len2_2 - len2_1 + lengthErrer > 0)
-							{
-								if (ang2_2 < Pi + angleErrer)
-								{
-									score += 1200;
-								}
-							}
-							else
-							{
-								//角度の合計が180度
-								if (abs(ang2_1 + ang2_2 - Pi) < angleErrer)
-								{
-									score += 1600;
-								}
-								//角度の合計が360度
-								if (abs(ang2_1 + ang2_2 - Pi * 2) < angleErrer)
-								{
-									score += 2000;
-								}
-							}
-						}
-					}
-				}
+				int score = eval(n1, n2, i, j);
 
 				maxScore = max(maxScore, score);
 			}
@@ -635,25 +455,103 @@ private:
 		return maxScore;
 	}
 
+	const int eval(const size_t pieceId1, const size_t pieceId2, const size_t cornerId1, const size_t cornerId2) const {
+
+		int score1 = 0;
+		int score2 = 0;
+
+		const double errerLenght = 10;
+		const double errerAngle = Radians(3);
+
+		const auto size1 = pieces[pieceId1].corners.size();
+		const auto size2 = pieces[pieceId2].corners.size();
+
+		const double len1_1 = pieces[pieceId1].corners[(cornerId1 + 0) % size1].length;
+		const double len1_2 = pieces[pieceId1].corners[(cornerId1 + 1) % size1].length;
+		const double len1_3 = pieces[pieceId1].corners[(cornerId1 + 2) % size1].length;
+
+		const double len2_1 = pieces[pieceId2].corners[(cornerId2 + 0) % size2].length;
+		const double len2_2 = pieces[pieceId2].corners[(cornerId2 + 1) % size2].length;
+		const double len2_3 = pieces[pieceId2].corners[(cornerId2 + 2) % size2].length;
+
+		const double ang1_1 = pieces[pieceId1].corners[(cornerId1 + 0) % size1].angle;
+		const double ang1_2 = pieces[pieceId1].corners[(cornerId1 + 1) % size1].angle;
+		const double ang1_3 = pieces[pieceId1].corners[(cornerId1 + 2) % size1].angle;
+
+		const double ang2_1 = pieces[pieceId2].corners[(cornerId2 + 0) % size2].angle;
+		const double ang2_2 = pieces[pieceId2].corners[(cornerId2 + 1) % size2].angle;
+		const double ang2_3 = pieces[pieceId2].corners[(cornerId2 + 2) % size2].angle;
+
+		bool flag;
+
+		flag = false;
+		if (abs(len1_1 - len2_1) < errerLenght) score1 += 1;
+		if (abs(len1_2 - len2_2) < errerLenght) { score1 += 3; flag = true; }
+		if (abs(len1_3 - len2_3) < errerLenght) score1 += 1;
+
+		if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 3;
+		if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 5 : 3);
+		if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 5 : 3);
+
+		if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 3;
+		if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 5 : 3);
+		if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 5 : 3);
+
+		flag = false;
+		if (abs(len1_1 - len2_3) < errerLenght) score2 += 1;
+		if (abs(len1_2 - len2_2) < errerLenght) { score2 += 3; flag = true; }
+		if (abs(len1_3 - len2_1) < errerLenght) score2 += 1;
+
+		if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score2 += 3;
+		if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score2 += (flag ? 5 : 3);
+		if (abs(ang1_3 + ang2_1 - Pi) < errerAngle) score2 += (flag ? 5 : 3);
+
+		if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle) score2 += 3;
+		if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score2 += (flag ? 5 : 3);
+		if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle) score2 += (flag ? 5 : 3);
+
+		return max(score1, score2);
+	}
+
 };
 
 void Main()
 {
 	/*
-	Image image(L"iphone.jpg");
+	//Image image(L"iphone.jpg");
+	//Window::Resize(image.size);
 
-	Window::Resize(image.size);
+	Image image = Dialog::OpenImage();
 
-	image.grayscale().threshold(60);
+	GUI gui(GUIStyle::Default);
+	gui.add(L"sl", GUISlider::Create(0, 255, 60, true));
+	gui.add(L"bu", GUIButton::Create(L"OK"));
+	gui.show(true);
+
+	Texture texture = Texture(image.grayscaled().thresholded(60));
+	while (System::Update())
+	{
+		if (gui.slider(L"sl").hasChanged)
+		{
+			texture = Texture(image.grayscaled().thresholded((uint8)gui.slider(L"sl").value));
+		}
+
+		if (gui.button(L"bu").pushed)
+			break;
+
+		texture.resize(Window::Size()).draw();
+	}
+	gui.show(false);
+
+	image.grayscale().threshold((uint8)gui.slider(L"sl").value);
 
 	image.savePNG(L"二値化.png");
 
 	image = Filter::filter(image);
 
 	image.savePNG(L"ノイズ除去.png");
-	*/
 
-	Image image(L"ノイズ除去.png");
+	//Image image(L"ノイズ除去.png");
 
 	image = Filter::median(image);
 
@@ -686,6 +584,24 @@ void Main()
 
 	AI ai;
 
-	ai.think(pieces);
+	const auto pattern = ai.think(pieces);
+	//*/
+
+	Window::Resize(1280, 960);
+	while (System::Update())
+	{
+		const int W = 6, H = 4;
+		for (int y = 0; y < H; y++)
+		{
+			for (int x = 0; x < W; x++)
+			{
+				Rect(Point(x * 1280 / W, y * 960 / H) + Point(10, 10), Point(1280 / W, 960 / H) - Point(20, 20)).drawFrame(1, 1, Palette::White);
+			}
+			Line({ 0,y * 960 / H }, { 320,y * 960 / H }).drawArrow(2);
+			Line({ 320,y * 960 / H }, { 640,y * 960 / H }).drawArrow(2);
+			Line({ 640,y * 960 / H }, { 960,y * 960 / H }).drawArrow(2);
+			Line({ 960,y * 960 / H }, { 1280,y * 960 / H }).drawArrow(2);
+		}
+	}
 
 }
