@@ -460,8 +460,8 @@ private:
 		int score1 = 0;
 		int score2 = 0;
 
-		const double errerLenght = 10;
-		const double errerAngle = Radians(3);
+		const double errerLenght = 2;
+		const double errerAngle = Radians(1);
 
 		const auto size1 = pieces[pieceId1].corners.size();
 		const auto size2 = pieces[pieceId2].corners.size();
@@ -517,7 +517,7 @@ private:
 
 void Main()
 {
-	/*
+	//*
 	//Image image(L"iphone.jpg");
 	//Window::Resize(image.size);
 
@@ -557,21 +557,25 @@ void Main()
 
 	auto images = ImageChip::chip(image);
 
-	for (const auto& i : step(images.size())) images[i].savePNG(L"picture/分離" + Format(i) + L".png");
+	for (const auto& i : step(images.size()))
+	{
+		images[i].savePNG(L"picture/分離" + Format(i) + L".png");
+	}
 
 	Array<Array<Point>> pieces;
 
 	ExtraPiece extra;
 
+
 	for (auto& img : images)
 	{
 		const auto vec = extra.getPiece(img);
-		for (size_t i = 0, size = vec.size(); i < size; i++)
-			Line(vec[i], vec[(i + 1) % size]).overwrite(img, 4, Palette::Red);
+		//for (size_t i = 0, size = vec.size(); i < size; i++)
+		//	Line(vec[i], vec[(i + 1) % size]).overwrite(img, 4, Palette::Red);
 
 		pieces.emplace_back(vec);
 	}
-
+	/*
 	for (const auto& i : step(images.size()))
 	{
 		Window::Resize(images[i].size);
@@ -581,13 +585,24 @@ void Main()
 		ScreenCapture::Save(L"picture/形状取得" + Format(i) + L".png");
 	}
 	System::Update();
+	*/
 
 	AI ai;
 
 	const auto pattern = ai.think(pieces);
 	//*/
 
-	Window::Resize(1280, 960);
+	Window::Resize(1920, 960);
+	int scroll = 0;
+	Array<Texture> textures;
+
+	for (const auto& i : step(images.size()))
+	{
+		textures.push_back(Texture(images[i]));
+	}
+
+	Font font(24);
+
 	while (System::Update())
 	{
 		const int W = 6, H = 4;
@@ -595,13 +610,42 @@ void Main()
 		{
 			for (int x = 0; x < W; x++)
 			{
-				Rect(Point(x * 1280 / W, y * 960 / H) + Point(10, 10), Point(1280 / W, 960 / H) - Point(20, 20)).drawFrame(1, 1, Palette::White);
+				const auto size = Point(Window::Size().x / W, Window::Size().y / H) - Point(20, 20);
+				const Size hSize = { size.x / 2,size.y };
+
+				const auto pos = Point(x * Window::Size().x / W, y * Window::Size().y / H) + Point(10, 10);
+
+				if ((y + scroll)*W + x < pattern.size())
+				{
+					const auto pieceId1 = pattern[(y + scroll)*W + x].first;
+					const auto pieceId2 = pattern[(y + scroll)*W + x].second;
+
+					double scal1 = min((double)hSize.x / images[pieceId1].size.x, (double)hSize.y / images[pieceId1].size.y);
+
+					double scal2 = min((double)hSize.x / images[pieceId2].size.x, (double)hSize.y / images[pieceId2].size.y);
+
+					textures[pieceId1].scale(scal1).draw(pos);
+					textures[pieceId2].scale(scal2).draw(Point(pos.x + hSize.x, pos.y));
+
+					font(pieceId1).draw(pos, Palette::Gray);
+					font(pieceId2).draw(pos + Point(hSize.x, 0), Palette::Gray);
+
+					Rect(pos, size).drawFrame(1, 1, Palette::White);
+				}
 			}
 			Line({ 0,y * 960 / H }, { 320,y * 960 / H }).drawArrow(2);
 			Line({ 320,y * 960 / H }, { 640,y * 960 / H }).drawArrow(2);
 			Line({ 640,y * 960 / H }, { 960,y * 960 / H }).drawArrow(2);
 			Line({ 960,y * 960 / H }, { 1280,y * 960 / H }).drawArrow(2);
+			Line({ 1280,y * 960 / H }, { 1600,y * 960 / H }).drawArrow(2);
+			Line({ 1600,y * 960 / H }, { 1980,y * 960 / H }).drawArrow(2);
 		}
+
+		if (Input::KeyUp.clicked)
+			scroll = max(scroll - 1, 0);
+		else if (Input::KeyDown.clicked)
+			scroll = min(scroll + 1, (int)pattern.size() / W);
+
 	}
 
 }
