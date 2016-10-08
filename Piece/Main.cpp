@@ -7,7 +7,9 @@ using namespace std;
 class ExtraPiece {
 public:
 
-	const Array<Point> getPiece(const Image& image, const double max_distance = 2.5) {
+	const Array<Point> getPiece(const Image& image, const double max_distance = 3.0) {
+
+		const double errerAngle = Radians(15);
 
 		const Polygon polygon = Imaging::FindContour(image, false);
 		const Array<Vec2> vecArray = polygon.simplified(max_distance).outer();
@@ -17,6 +19,7 @@ public:
 		Array<Vec2> vec2;
 
 		std::cout << "元データ\t" << vec1.size() << std::endl;
+		for (const auto& v : vec1) std::cout << v << std::endl;
 
 		do
 		{
@@ -30,7 +33,7 @@ public:
 				const double ang1 = Math::Atan2(p2.y - p1.y, p2.x - p1.x);
 				const double ang2 = Math::Atan2(p3.y - p2.y, p3.x - p2.x);
 
-				if (abs(ang1 - ang2) > Radians(10))
+				if (abs(ang1 - ang2) > errerAngle || abs(ang1 + ang2 - Pi) > errerAngle)
 					vec2.push_back(Point(p1.x, p1.y));
 				else
 				{
@@ -43,7 +46,8 @@ public:
 
 		} while (vecSize > vec1.size());
 
-		std::cout << "角度調節\t" << vec1.size() << std::endl;
+		std::cout << "角度調節1\t" << vec1.size() << std::endl;
+		for (const auto& v : vec1) std::cout << v << std::endl;
 
 		do
 		{
@@ -84,10 +88,42 @@ public:
 			}
 
 			vec1.swap(vec2);
+			vec2.clear();
 
 		} while (vecSize > vec1.size());
 
 		std::cout << "辺調節\t" << vec1.size() << std::endl;
+		for (const auto& v : vec1) std::cout << v << std::endl;
+
+
+		do
+		{
+			vecSize = vec1.size();
+			for (size_t i = 0, size = vec1.size(); i < size; i++)
+			{
+				const Vec2 p1 = vec1[(i + 0) % size];
+				const Vec2 p2 = vec1[(i + 1) % size];
+				const Vec2 p3 = vec1[(i + 2) % size];
+
+				const double ang1 = Math::Atan2(p2.y - p1.y, p2.x - p1.x);
+				const double ang2 = Math::Atan2(p3.y - p2.y, p3.x - p2.x);
+
+				if (abs(ang1 - ang2) > errerAngle || abs(ang1 + ang2 - Pi) > errerAngle)
+					vec2.push_back(Point(p1.x, p1.y));
+				else
+				{
+					vec2.push_back(Point(p1.x, p1.y));
+					i++;
+				}
+			}
+			vec1.swap(vec2);
+			vec2.clear();
+
+		} while (vecSize > vec1.size());
+
+		std::cout << "角度調節2\t" << vec1.size() << std::endl;
+		for (const auto& i : step(vec1.size())) std::cout << vec1[i] << "\t," << Math::Atan2(vec1[(i + 1) % vec1.size()].y - vec1[(i + 0) % vec1.size()].y, vec1[(i + 1) % vec1.size()].x - vec1[(i + 0) % vec1.size()].x) << std::endl;
+
 
 		Array<Point> points;
 		for (const auto& v : vec1)
@@ -425,7 +461,7 @@ public:
 				pair<int, int> pair1;
 				pair<int, int> pair2;
 
-				const int score1 = match(i, j, false, pair1);
+				const int score1 = match(i, j, pair1);
 				const int score2 = 0;//match(i, j, true, pair2);
 				const int score = max(score1, score2);
 
@@ -538,7 +574,7 @@ private:
 
 	}
 
-	const int match(const size_t n1, const size_t n2, bool reverce, pair<int, int>& maxRad) const {
+	const int match(const size_t n1, const size_t n2, pair<int, int>& maxRad) const {
 
 		const auto size1 = pieces[n1].corners.size();
 		const auto size2 = pieces[n2].corners.size();
@@ -549,7 +585,7 @@ private:
 		{
 			for (const auto j : step(size2))
 			{
-				int score = eval(n1, n2, i, j, false);
+				int score = eval(n1, n2, i, j);
 
 				if (maxScore < score)
 				{
@@ -562,13 +598,13 @@ private:
 		return maxScore;
 	}
 
-	const int eval(const size_t pieceId1, const size_t pieceId2, const size_t cornerId1, const size_t cornerId2, bool reverce) const {
+	const int eval(const size_t pieceId1, const size_t pieceId2, const size_t cornerId1, const size_t cornerId2) const {
 
 		int score1 = 0;
 		int score2 = 0;
 
-		const double errerLenght = 5;
-		const double errerAngle = Radians(5);
+		const double errerLenght = 10;
+		const double errerAngle = Radians(10);
 
 		const auto size1 = pieces[pieceId1].corners.size();
 		const auto size2 = pieces[pieceId2].corners.size();
@@ -594,32 +630,62 @@ private:
 		if (!false)
 		{
 			flag = false;
-			if (abs(len1_1 - len2_1) < errerLenght) score1 += 100;
+			/*
+			if (abs(len1_1 - len2_3) < errerLenght) score1 += 100;
 			if (abs(len1_2 - len2_2) < errerLenght) { score1 += 150; flag = true; }
-			if (abs(len1_3 - len2_3) < errerLenght) score1 += 100;
+			if (abs(len1_3 - len2_1) < errerLenght) score1 += 100;
 
-			//if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 100;
-			//if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
-			//if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
+			if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score1 += 100;
+			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
+			if (abs(ang1_3 + ang2_1 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
 
-			if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 100;
+			if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle) score1 += 100;
 			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
-			if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
-		}
-		else
-		{
-			flag = false;
-			if (abs(len1_1 - len2_3) < errerLenght) score2 += 100;
-			if (abs(len1_2 - len2_2) < errerLenght) { score2 += 150; flag = true; }
-			if (abs(len1_3 - len2_1) < errerLenght) score2 += 100;
+			if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
+			*/
 
-			if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score2 += 100;
-			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score2 += (flag ? 150 : 100);
-			if (abs(ang1_3 + ang2_1 - Pi) < errerAngle) score2 += (flag ? 150 : 100);
+			if (abs(len1_1 - len2_3) < errerLenght)
+				if (abs(len1_2 - len2_2) < errerLenght)
+					if (abs(len1_3 - len2_1) < errerLenght)
+						score1 += 50;
 
-			if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle) score2 += 100;
-			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score2 += (flag ? 300 : 150);
-			if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle) score2 += (flag ? 300 : 150);
+			if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle)
+			{
+				if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle)
+				{
+					if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle)
+						score1 += 100;
+					else
+						score1 += 50;
+				}
+			}
+			else if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle)
+			{
+				if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle)
+					score1 += 50;
+			}
+
+			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle)
+			{
+				if (abs(len1_2 - len2_2) < errerLenght)
+				{
+					if (abs(len1_1 - len2_3) < errerLenght)
+						score1 += 75;
+					else
+						score1 += 25;
+				}
+			}
+			if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle)
+			{
+				if (abs(len1_2 - len2_2) < errerLenght)
+				{
+					if (abs(len1_3 - len2_1) < errerLenght)
+						score1 += 75;
+					else
+						score1 += 25;
+				}
+			}
+
 		}
 
 		return max(score1, score2);
@@ -681,45 +747,15 @@ void Main()
 
 	ExtraPiece extra;
 
-
-	GUI pieceGUI(GUIStyle::Default);
-
-	pieceGUI.add(L"sl", GUISlider::Create(1.0, 10.0, 3.0, true));
-	pieceGUI.add(L"bu", GUIButton::Create(L"OK"));
-	pieceGUI.show(true);
-
-	for (auto& img : images)
+	for (const auto& c : step(images.size()))
 	{
-		//auto vec = extra.getPiece(img, pieceGUI.slider(L"sl").value);
-		const auto vec = extra.getPiece(img);
-		/*
-		Texture tex(img);
-		Window::SetTitle(Format(L"頂点数:", vec.size()));
-
-		while (System::Update())
-		{
-			if (pieceGUI.slider(L"sl").hasChanged)
-			{
-				vec = extra.getPiece(img, pieceGUI.slider(L"sl").value);
-				Window::SetTitle(Format(L"頂点数:", vec.size()));
-			}
-
-			tex.draw(Point(0, 72));
-			for (size_t i = 0, size = vec.size(); i < size; i++)
-				Line(vec[i] + Point(0, 72), vec[(i + 1) % size] + Point(0, 72)).drawArrow(4, { 10.0,10.0 }, Palette::Red);
-
-
-			if (Input::KeyEnter.clicked || pieceGUI.button(L"bu").pushed)
-				break;
-		}
-		*/
+		std::cout << "ピース:" << c << std::endl;
+		const auto vec = extra.getPiece(images[c]);
 		for (size_t i = 0, size = vec.size(); i < size; i++)
-			Line(vec[i], vec[(i + 1) % size]).overwriteArrow(img, 3, { 10.0,10.0 }, Palette::Red);
-		//Line(vec[i], vec[(i + 1) % size]).overwrite(img, 2, Palette::Red);
+			Line(vec[i], vec[(i + 1) % size]).overwriteArrow(images[c], 3, { 10.0,10.0 }, Palette::Red);
 
 		pieces.emplace_back(vec);
 	}
-	pieceGUI.show(false);
 
 	/*
 	for (const auto& i : step(images.size()))
