@@ -7,46 +7,17 @@ using namespace std;
 class ExtraPiece {
 public:
 
-	const Array<Point> getPiece(const Image& image, const double max_distance = 3.0) {
+	const Array<Point> getPiece(const Image& image, const double max_distance = 2.5) {
 
 		const Polygon polygon = Imaging::FindContour(image, false);
 		const Array<Vec2> vecArray = polygon.simplified(max_distance).outer();
 
-		Array<Point> vec1;
-		for (size_t i = 0, size = vecArray.size(); i < size; i++)
-		{
-			const double range = Math::Sqrt(Math::Square(vecArray[i].x - vecArray[(i + 1) % size].x) + Math::Square(vecArray[i].y - vecArray[(i + 1) % size].y));
-			const double angel = Math::Atan2(vecArray[(i + 1) % size].y - vecArray[i].y, vecArray[(i + 1) % size].x - vecArray[i].x);
-
-			//最低の辺の長さ未満ならば辺を削除する
-			if (range > 15)
-			{
-				vec1.push_back(Point(vecArray[i].x, vecArray[i].y));
-			}
-			else
-			{
-				const Vec2 p1 = vecArray[(i + size - 1) % size];
-				const Vec2 p2 = vecArray[(i + 0) % size];
-				const Vec2 p3 = vecArray[(i + 1) % size];
-				const Vec2 p4 = vecArray[(i + 2) % size];
-
-				const Vec2 v1 = p2 - p1;
-				const Vec2 v2 = p3 - p4;
-
-				const double sinv1 = (v1.x != 0) ? (v1.y / v1.x) : (1);
-				const double sinv2 = (v2.x != 0) ? (v2.y / v2.x) : (1);
-
-				const double x1 = ((p1.x*sinv1 - p4.x*sinv2) - (p1.y - p4.y)) / (sinv1 - sinv2);
-				const double y1 = p1.y + sinv1*(x1 - p1.x);
-				const double x2 = ((p1.x*sinv1 - p4.x*sinv2) - (p1.y - p4.y)) / (sinv1 - sinv2);
-				const double y2 = p4.y + sinv2*(x2 - p4.x);
-
-				vec1.push_back(Point((int)x1, (int)y1));
-			}
-		}
-
 		size_t vecSize;
-		Array<Point> vec2;
+		Array<Vec2> vec1 = vecArray;
+		Array<Vec2> vec2;
+
+		std::cout << "元データ\t" << vec1.size() << std::endl;
+
 		do
 		{
 			vecSize = vec1.size();
@@ -72,7 +43,57 @@ public:
 
 		} while (vecSize > vec1.size());
 
-		return vec1;
+		std::cout << "角度調節\t" << vec1.size() << std::endl;
+
+		do
+		{
+			vecSize = vec1.size();
+			for (size_t i = 0, size = vec1.size(); i < size; i++)
+			{
+				const double range = Math::Sqrt(Math::Square(vec1[i].x - vec1[(i + 1) % size].x) + Math::Square(vec1[i].y - vec1[(i + 1) % size].y));
+				const double angel = Math::Atan2(vec1[(i + 1) % size].y - vec1[i].y, vec1[(i + 1) % size].x - vec1[i].x);
+
+
+				//最低の辺の長さ未満ならば辺を削除する
+				if (range > 15)
+				{
+					vec2.push_back(vec1[i]);
+				}
+				else
+				{
+					const Vec2 p1 = vec1[(i + size - 1) % size];
+					const Vec2 p2 = vec1[(i + 0) % size];
+					const Vec2 p3 = vec1[(i + 1) % size];
+					const Vec2 p4 = vec1[(i + 2) % size];
+
+					const Vec2 v1 = p2 - p1;
+					const Vec2 v2 = p3 - p4;
+
+					const double sinv1 = (v1.x != 0) ? (v1.y / v1.x) : (1);
+					const double sinv2 = (v2.x != 0) ? (v2.y / v2.x) : (1);
+
+					const double x1 = ((p1.x*sinv1 - p4.x*sinv2) - (p1.y - p4.y)) / (sinv1 - sinv2);
+					const double y1 = p1.y + sinv1*(x1 - p1.x);
+					const double x2 = ((p1.x*sinv1 - p4.x*sinv2) - (p1.y - p4.y)) / (sinv1 - sinv2);
+					const double y2 = p4.y + sinv2*(x2 - p4.x);
+
+					i++;
+
+					vec2.emplace_back((int)x1, (int)y1);
+				}
+			}
+
+			vec1.swap(vec2);
+
+		} while (vecSize > vec1.size());
+
+		std::cout << "辺調節\t" << vec1.size() << std::endl;
+
+		Array<Point> points;
+		for (const auto& v : vec1)
+			points.emplace_back(Point(v.x, v.y));
+
+		return points;
 	}
 
 };
@@ -279,7 +300,7 @@ public:
 					}
 				}
 
-				if (points.size() < 200)
+				if (points.size() < 1000)
 				{
 					for (const auto& pos : points)
 					{
@@ -428,12 +449,14 @@ public:
 						const Point rot = Point(pos2_1.x*cos(dif) - pos2_1.y*sin(dif), pos2_1.x*sin(dif) + pos2_1.y*cos(dif));
 						const Point difP = pos1_1 - rot;
 
+						/*
 						std::cout << "info" << std::endl;
 						std::cout << i << "," << j << std::endl;
 						std::cout << ang1 << "," << ang2 << std::endl;
 						std::cout << dif << std::endl;
 						std::cout << rot << std::endl;
 						std::cout << difP << std::endl;
+						*/
 
 						scoreVec.push_back(PairMatch(i, j, pair1.first, pair1.second, score, dif, difP, false));
 						scoreQue.push(PairMatch(i, j, pair1.first, pair1.second, score, dif, difP, false));
@@ -456,12 +479,14 @@ public:
 						const Point rot = Point(pos2_1.x*cos(dif) - pos2_1.y*sin(dif), pos2_1.x*sin(dif) + pos2_1.y*cos(dif));
 						const Point difP = pos1_1 - rot;
 
+						/*
 						std::cout << "info" << std::endl;
 						std::cout << i << "," << j << std::endl;
 						std::cout << ang1 << "," << ang2 << std::endl;
 						std::cout << dif << std::endl;
 						std::cout << rot << std::endl;
 						std::cout << difP << std::endl;
+						*/
 
 						scoreVec.push_back(PairMatch(i, j, pair2.first, pair2.second, score, dif, difP, true));
 						scoreQue.push(PairMatch(i, j, pair2.first, pair2.second, score, dif, difP, true));
@@ -591,13 +616,13 @@ private:
 			if (abs(len1_2 - len2_2) < errerLenght) { score1 += 150; flag = true; }
 			if (abs(len1_3 - len2_3) < errerLenght) score1 += 100;
 
-			if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 3;
-			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 5 : 3);
-			if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 5 : 3);
+			if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 100;
+			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
+			if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
 
-			if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 3;
-			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 5 : 3);
-			if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 5 : 3);
+			//if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 100;
+			//if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
+			//if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
 		}
 		else
 		{
@@ -606,13 +631,13 @@ private:
 			if (abs(len1_2 - len2_2) < errerLenght) { score2 += 150; flag = true; }
 			if (abs(len1_3 - len2_1) < errerLenght) score2 += 100;
 
-			if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score2 += 3;
-			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score2 += (flag ? 5 : 3);
-			if (abs(ang1_3 + ang2_1 - Pi) < errerAngle) score2 += (flag ? 5 : 3);
+			if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score2 += 100;
+			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score2 += (flag ? 150 : 100);
+			if (abs(ang1_3 + ang2_1 - Pi) < errerAngle) score2 += (flag ? 150 : 100);
 
-			if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle) score2 += 3;
-			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score2 += (flag ? 5 : 3);
-			if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle) score2 += (flag ? 5 : 3);
+			if (abs(ang1_1 + ang2_3 - Pi * 2) < errerAngle) score2 += 100;
+			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score2 += (flag ? 300 : 150);
+			if (abs(ang1_3 + ang2_1 - Pi * 2) < errerAngle) score2 += (flag ? 300 : 150);
 		}
 
 		return max(score1, score2);
@@ -632,6 +657,9 @@ void Main()
 	gui.add(L"sl", GUISlider::Create(0, 255, 60, true));
 	gui.add(L"bu", GUIButton::Create(L"OK"));
 	gui.show(true);
+
+	Window::Resize(1920, 1080);
+	Graphics::SetBackground(Palette::Lightgreen);
 
 	Texture texture = Texture(image.grayscaled().thresholded(60));
 	while (System::Update())
@@ -672,14 +700,45 @@ void Main()
 	ExtraPiece extra;
 
 
+	GUI pieceGUI(GUIStyle::Default);
+
+	pieceGUI.add(L"sl", GUISlider::Create(1.0, 10.0, 3.0, true));
+	pieceGUI.add(L"bu", GUIButton::Create(L"OK"));
+	pieceGUI.show(true);
+
 	for (auto& img : images)
 	{
+		//auto vec = extra.getPiece(img, pieceGUI.slider(L"sl").value);
 		const auto vec = extra.getPiece(img);
+		/*
+		Texture tex(img);
+		Window::SetTitle(Format(L"頂点数:", vec.size()));
+		
+		while (System::Update())
+		{
+			if (pieceGUI.slider(L"sl").hasChanged)
+			{
+				vec = extra.getPiece(img, pieceGUI.slider(L"sl").value);
+				Window::SetTitle(Format(L"頂点数:", vec.size()));
+			}
+
+			tex.draw(Point(0, 72));
+			for (size_t i = 0, size = vec.size(); i < size; i++)
+				Line(vec[i] + Point(0, 72), vec[(i + 1) % size] + Point(0, 72)).drawArrow(4, { 10.0,10.0 }, Palette::Red);
+
+
+			if (Input::KeyEnter.clicked || pieceGUI.button(L"bu").pushed)
+				break;
+		}
+		*/
 		for (size_t i = 0, size = vec.size(); i < size; i++)
-			Line(vec[i], vec[(i + 1) % size]).overwrite(img, 2, Palette::Red);
+			Line(vec[i], vec[(i + 1) % size]).overwriteArrow(img, 3, { 10.0,10.0 }, Palette::Red);
+		//Line(vec[i], vec[(i + 1) % size]).overwrite(img, 2, Palette::Red);
 
 		pieces.emplace_back(vec);
 	}
+	pieceGUI.show(false);
+
 	/*
 	for (const auto& i : step(images.size()))
 	{
@@ -697,7 +756,6 @@ void Main()
 	const auto pattern = ai.think(pieces);
 	//*/
 
-	Window::Resize(1920, 1080);
 	int scroll = 0;
 	Array<Texture> textures;
 
@@ -708,11 +766,10 @@ void Main()
 	}
 
 	Font font(24);
-	Graphics::SetBackground(Palette::Lightgreen);
 
 	while (System::Update())
 	{
-		const int W = 2, H = 2;
+		const int W = 3, H = 3;
 		for (int y = 0; y < H; y++)
 		{
 			for (int x = 0; x < W; x++)
@@ -750,13 +807,13 @@ void Main()
 					textures[pieceId1].scale(scale).draw(pos + Point(0, 0) + Point(10, 10));
 					textures[pieceId2].scale(scale).draw(pos + Point(center.x, 0) + Point(10, 10));
 
-					Line(p1_1*scale + pos + Point(0, 0) + Point(10, 10), p1_2*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
-					Line(p1_2*scale + pos + Point(0, 0) + Point(10, 10), p1_3*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
-					Line(p1_3*scale + pos + Point(0, 0) + Point(10, 10), p1_4*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p1_1*scale + pos + Point(0, 0) + Point(10, 10), p1_2*scale + pos + Point(0, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
+					Line(p1_2*scale + pos + Point(0, 0) + Point(10, 10), p1_3*scale + pos + Point(0, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
+					Line(p1_3*scale + pos + Point(0, 0) + Point(10, 10), p1_4*scale + pos + Point(0, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
 
-					Line(p2_1*scale + pos + Point(center.x, 0) + Point(10, 10), p2_2*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
-					Line(p2_2*scale + pos + Point(center.x, 0) + Point(10, 10), p2_3*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
-					Line(p2_3*scale + pos + Point(center.x, 0) + Point(10, 10), p2_4*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p2_1*scale + pos + Point(center.x, 0) + Point(10, 10), p2_2*scale + pos + Point(center.x, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
+					Line(p2_2*scale + pos + Point(center.x, 0) + Point(10, 10), p2_3*scale + pos + Point(center.x, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
+					Line(p2_3*scale + pos + Point(center.x, 0) + Point(10, 10), p2_4*scale + pos + Point(center.x, 0) + Point(10, 10)).drawArrow(4, { 10,10 }, Palette::Black);
 
 					//textures[pieceId2].rotate(pattern[(y + scroll)*W + x].angle).draw(pos + center - pattern[(y + scroll)*W + x].pos);
 
@@ -770,9 +827,9 @@ void Main()
 		}
 
 		if (Input::KeyUp.clicked)
-			scroll = max(scroll - 1, 0);
+			scroll = max(scroll - H, 0);
 		else if (Input::KeyDown.clicked)
-			scroll = min(scroll + 1, (int)pattern.size() / W);
+			scroll = min(scroll + H, (int)pattern.size() / W);
 
 	}
 
