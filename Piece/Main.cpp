@@ -19,7 +19,7 @@ public:
 			const double angel = Math::Atan2(vecArray[(i + 1) % size].y - vecArray[i].y, vecArray[(i + 1) % size].x - vecArray[i].x);
 
 			//最低の辺の長さ未満ならば辺を削除する
-			if (range > 10)
+			if (range > 15)
 			{
 				vec1.push_back(Point(vecArray[i].x, vecArray[i].y));
 			}
@@ -45,22 +45,32 @@ public:
 			}
 		}
 
+		size_t vecSize;
 		Array<Point> vec2;
-		for (size_t i = 0, size = vec1.size(); i < size; i++)
+		do
 		{
-			const Vec2 p1 = vec1[(i + 0) % size];
-			const Vec2 p2 = vec1[(i + 1) % size];
-			const Vec2 p3 = vec1[(i + 2) % size];
-
-			const double ang1 = Math::Atan2(p2.y - p1.y, p2.x - p1.x);
-			const double ang2 = Math::Atan2(p3.y - p2.y, p3.x - p2.x);
-
-			if (abs(ang1 - ang2) < Radians(1))
+			vecSize = vec1.size();
+			for (size_t i = 0, size = vec1.size(); i < size; i++)
 			{
-				vec2.push_back(Point(p1.x, p1.y));
-				i++;
+				const Vec2 p1 = vec1[(i + 0) % size];
+				const Vec2 p2 = vec1[(i + 1) % size];
+				const Vec2 p3 = vec1[(i + 2) % size];
+
+				const double ang1 = Math::Atan2(p2.y - p1.y, p2.x - p1.x);
+				const double ang2 = Math::Atan2(p3.y - p2.y, p3.x - p2.x);
+
+				if (abs(ang1 - ang2) > Radians(10))
+					vec2.push_back(Point(p1.x, p1.y));
+				else
+				{
+					vec2.push_back(Point(p1.x, p1.y));
+					i++;
+				}
 			}
-		}
+			vec1.swap(vec2);
+			vec2.clear();
+
+		} while (vecSize > vec1.size());
 
 		return vec1;
 	}
@@ -389,10 +399,8 @@ public:
 
 		for (size_t i = 0; i < size; i++)
 		{
-			for (size_t j = 0; j < size; j++)
+			for (size_t j = i + 1; j < size; j++)
 			{
-				if (i == j) continue;
-
 				pair<int, int> pair1;
 				pair<int, int> pair2;
 
@@ -552,8 +560,8 @@ private:
 		int score1 = 0;
 		int score2 = 0;
 
-		const double errerLenght = 2;
-		const double errerAngle = Radians(1);
+		const double errerLenght = 5;
+		const double errerAngle = Radians(5);
 
 		const auto size1 = pieces[pieceId1].corners.size();
 		const auto size2 = pieces[pieceId2].corners.size();
@@ -579,9 +587,9 @@ private:
 		if (!reverce)
 		{
 			flag = false;
-			if (abs(len1_1 - len2_1) < errerLenght) score1 += 1;
-			if (abs(len1_2 - len2_2) < errerLenght) { score1 += 3; flag = true; }
-			if (abs(len1_3 - len2_3) < errerLenght) score1 += 1;
+			if (abs(len1_1 - len2_1) < errerLenght) score1 += 100;
+			if (abs(len1_2 - len2_2) < errerLenght) { score1 += 150; flag = true; }
+			if (abs(len1_3 - len2_3) < errerLenght) score1 += 100;
 
 			if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 3;
 			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 5 : 3);
@@ -594,9 +602,9 @@ private:
 		else
 		{
 			flag = false;
-			if (abs(len1_1 - len2_3) < errerLenght) score2 += 1;
-			if (abs(len1_2 - len2_2) < errerLenght) { score2 += 3; flag = true; }
-			if (abs(len1_3 - len2_1) < errerLenght) score2 += 1;
+			if (abs(len1_1 - len2_3) < errerLenght) score2 += 100;
+			if (abs(len1_2 - len2_2) < errerLenght) { score2 += 150; flag = true; }
+			if (abs(len1_3 - len2_1) < errerLenght) score2 += 100;
 
 			if (abs(ang1_1 + ang2_3 - Pi) < errerAngle) score2 += 3;
 			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score2 += (flag ? 5 : 3);
@@ -689,7 +697,7 @@ void Main()
 	const auto pattern = ai.think(pieces);
 	//*/
 
-	Window::Resize(1920, 960);
+	Window::Resize(1920, 1080);
 	int scroll = 0;
 	Array<Texture> textures;
 
@@ -700,10 +708,11 @@ void Main()
 	}
 
 	Font font(24);
+	Graphics::SetBackground(Palette::Lightgreen);
 
 	while (System::Update())
 	{
-		const int W = 1, H = 1;
+		const int W = 2, H = 2;
 		for (int y = 0; y < H; y++)
 		{
 			for (int x = 0; x < W; x++)
@@ -718,26 +727,46 @@ void Main()
 					const auto pieceId1 = pattern[(y + scroll)*W + x].n1;
 					const auto pieceId2 = pattern[(y + scroll)*W + x].n2;
 
-					textures[pieceId1].draw(pos + Point(0, 0));
-					textures[pieceId2].draw(pos + Point(center.x, 0));
+					const auto p1_1 = pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 0) % pieces[pieceId1].size()];
+					const auto p1_2 = pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 1) % pieces[pieceId1].size()];
+					const auto p1_3 = pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 2) % pieces[pieceId1].size()];
+					const auto p1_4 = pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 3) % pieces[pieceId1].size()];
 
-					Line(pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 0) % pieces[pieceId1].size()] + pos + Point(0, 0),
-						pieces[pieceId1][(pattern[(y + scroll)*W + x].v1 + 1) % pieces[pieceId1].size()] + pos + Point(0, 0)).draw(2, Palette::Blue);
-					Line(pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 0) % pieces[pieceId2].size()] + pos + Point(center.x, 0),
-						pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 1) % pieces[pieceId2].size()] + pos + Point(center.x, 0)).draw(2, Palette::Blue);
+					const auto p2_1 = pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 0) % pieces[pieceId2].size()];
+					const auto p2_2 = pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 1) % pieces[pieceId2].size()];
+					const auto p2_3 = pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 2) % pieces[pieceId2].size()];
+					const auto p2_4 = pieces[pieceId2][(pattern[(y + scroll)*W + x].v2 + 3) % pieces[pieceId2].size()];
+
+					const double scale = min(
+						min(
+							min((double)hSize.x / textures[pieceId1].size.x,
+							(double)(hSize.y - 68) / textures[pieceId1].size.y),
+							min((double)hSize.x / textures[pieceId2].size.x,
+							(double)(hSize.y - 68) / textures[pieceId2].size.y)
+						),
+						1.0
+					);
+
+					textures[pieceId1].scale(scale).draw(pos + Point(0, 0) + Point(10, 10));
+					textures[pieceId2].scale(scale).draw(pos + Point(center.x, 0) + Point(10, 10));
+
+					Line(p1_1*scale + pos + Point(0, 0) + Point(10, 10), p1_2*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p1_2*scale + pos + Point(0, 0) + Point(10, 10), p1_3*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p1_3*scale + pos + Point(0, 0) + Point(10, 10), p1_4*scale + pos + Point(0, 0) + Point(10, 10)).draw(6, Palette::Black);
+
+					Line(p2_1*scale + pos + Point(center.x, 0) + Point(10, 10), p2_2*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p2_2*scale + pos + Point(center.x, 0) + Point(10, 10), p2_3*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
+					Line(p2_3*scale + pos + Point(center.x, 0) + Point(10, 10), p2_4*scale + pos + Point(center.x, 0) + Point(10, 10)).draw(6, Palette::Black);
+
 					//textures[pieceId2].rotate(pattern[(y + scroll)*W + x].angle).draw(pos + center - pattern[(y + scroll)*W + x].pos);
 
-					font(Format(pieceId1, L"-", pieceId2, L":", pattern[(y + scroll)*W + x].score)).draw(pos, Palette::Gray);
+					font(Format(L"(", Pad(pieceId1, { L'0',2 }), L", ", Pad(pieceId2, { L'0',2 }), L"):", pattern[(y + scroll)*W + x].score, L"\t", (y + scroll)*W + x, L"/", pattern.size())).draw({ pos.x,pos.y + size.y - 48 }, Palette::Black);
+
+					//Window::SetTitle(Format(Pad(pieceId1, { L'0',2 }), L"-", Pad(pieceId2, { L'0',2 }), L":", pattern[(y + scroll)*W + x].score, L"-", scroll, L"/", pattern.size() / W / H));
 
 					Rect(pos, size).drawFrame(1, 1, Palette::White);
 				}
 			}
-			Line({ 0,y * 960 / H }, { 320,y * 960 / H }).drawArrow(2);
-			Line({ 320,y * 960 / H }, { 640,y * 960 / H }).drawArrow(2);
-			Line({ 640,y * 960 / H }, { 960,y * 960 / H }).drawArrow(2);
-			Line({ 960,y * 960 / H }, { 1280,y * 960 / H }).drawArrow(2);
-			Line({ 1280,y * 960 / H }, { 1600,y * 960 / H }).drawArrow(2);
-			Line({ 1600,y * 960 / H }, { 1980,y * 960 / H }).drawArrow(2);
 		}
 
 		if (Input::KeyUp.clicked)
