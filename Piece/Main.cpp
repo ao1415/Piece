@@ -426,7 +426,7 @@ public:
 				pair<int, int> pair2;
 
 				const int score1 = match(i, j, false, pair1);
-				const int score2 = match(i, j, true, pair2);
+				const int score2 = 0;//match(i, j, true, pair2);
 				const int score = max(score1, score2);
 
 				if (score > 0)
@@ -449,15 +449,6 @@ public:
 						const Point rot = Point(pos2_1.x*cos(dif) - pos2_1.y*sin(dif), pos2_1.x*sin(dif) + pos2_1.y*cos(dif));
 						const Point difP = pos1_1 - rot;
 
-						/*
-						std::cout << "info" << std::endl;
-						std::cout << i << "," << j << std::endl;
-						std::cout << ang1 << "," << ang2 << std::endl;
-						std::cout << dif << std::endl;
-						std::cout << rot << std::endl;
-						std::cout << difP << std::endl;
-						*/
-
 						scoreVec.push_back(PairMatch(i, j, pair1.first, pair1.second, score, dif, difP, false));
 						scoreQue.push(PairMatch(i, j, pair1.first, pair1.second, score, dif, difP, false));
 					}
@@ -478,15 +469,6 @@ public:
 
 						const Point rot = Point(pos2_1.x*cos(dif) - pos2_1.y*sin(dif), pos2_1.x*sin(dif) + pos2_1.y*cos(dif));
 						const Point difP = pos1_1 - rot;
-
-						/*
-						std::cout << "info" << std::endl;
-						std::cout << i << "," << j << std::endl;
-						std::cout << ang1 << "," << ang2 << std::endl;
-						std::cout << dif << std::endl;
-						std::cout << rot << std::endl;
-						std::cout << difP << std::endl;
-						*/
 
 						scoreVec.push_back(PairMatch(i, j, pair2.first, pair2.second, score, dif, difP, true));
 						scoreQue.push(PairMatch(i, j, pair2.first, pair2.second, score, dif, difP, true));
@@ -567,7 +549,7 @@ private:
 		{
 			for (const auto j : step(size2))
 			{
-				int score = eval(n1, n2, i, j, reverce);
+				int score = eval(n1, n2, i, j, false);
 
 				if (maxScore < score)
 				{
@@ -609,20 +591,20 @@ private:
 
 		bool flag;
 
-		if (!reverce)
+		if (!false)
 		{
 			flag = false;
 			if (abs(len1_1 - len2_1) < errerLenght) score1 += 100;
 			if (abs(len1_2 - len2_2) < errerLenght) { score1 += 150; flag = true; }
 			if (abs(len1_3 - len2_3) < errerLenght) score1 += 100;
 
-			if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 100;
-			if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
-			if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
+			//if (abs(ang1_1 + ang2_1 - Pi) < errerAngle) score1 += 100;
+			//if (abs(ang1_2 + ang2_2 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
+			//if (abs(ang1_3 + ang2_3 - Pi) < errerAngle) score1 += (flag ? 150 : 100);
 
-			//if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 100;
-			//if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
-			//if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
+			if (abs(ang1_1 + ang2_1 - Pi * 2) < errerAngle) score1 += 100;
+			if (abs(ang1_2 + ang2_2 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
+			if (abs(ang1_3 + ang2_3 - Pi * 2) < errerAngle) score1 += (flag ? 300 : 150);
 		}
 		else
 		{
@@ -713,7 +695,7 @@ void Main()
 		/*
 		Texture tex(img);
 		Window::SetTitle(Format(L"頂点数:", vec.size()));
-		
+
 		while (System::Update())
 		{
 			if (pieceGUI.slider(L"sl").hasChanged)
